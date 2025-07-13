@@ -1,53 +1,35 @@
+# streamlit_app.py
+
 import streamlit as st
-from openai import OpenAI
+import numpy as np
+import pandas as pd
+import joblib
 
-# Show title and description.
-st.title("📄 Document question answering")
-st.write(
-    "Upload a document below and ask a question about it – GPT will answer! "
-    "To use this app, you need to provide an OpenAI API key, which you can get [here](https://platform.openai.com/account/api-keys). "
-)
+# Load model
+model = joblib.load('radiation_dose_model.pkl')
 
-# Ask user for their OpenAI API key via `st.text_input`.
-# Alternatively, you can store the API key in `./.streamlit/secrets.toml` and access it
-# via `st.secrets`, see https://docs.streamlit.io/develop/concepts/connections/secrets-management
-openai_api_key = st.text_input("OpenAI API Key", type="password")
-if not openai_api_key:
-    st.info("Please add your OpenAI API key to continue.", icon="🗝️")
-else:
+# Title
+st.title("🩻 AI Radiation Dose Estimator")
 
-    # Create an OpenAI client.
-    client = OpenAI(api_key=openai_api_key)
+st.markdown("Estimate the radiation dose (DAP in mGy·cm²) from X-ray parameters using AI.")
 
-    # Let the user upload a file via `st.file_uploader`.
-    uploaded_file = st.file_uploader(
-        "Upload a document (.txt or .md)", type=("txt", "md")
-    )
+# Input sliders
+kvp = st.slider("Tube Voltage (kVp)", 60, 120, 80)
+mas = st.slider("Tube Current-Time Product (mAs)", 1, 100, 10)
+time = st.slider("Exposure Time (ms)", 5.0, 100.0, 20.0)
+thickness = st.slider("Patient Thickness (cm)", 10.0, 35.0, 20.0)
+projection = st.selectbox("Projection Type", ['AP', 'PA', 'LAT'])
 
-    # Ask the user for a question via `st.text_area`.
-    question = st.text_area(
-        "Now ask a question about the document!",
-        placeholder="Can you give me a short summary?",
-        disabled=not uploaded_file,
-    )
+# Encode projection type
+proj_PA = 1 if projection == 'PA' else 0
+proj_LAT = 1 if projection == 'LAT' else 0
 
-    if uploaded_file and question:
+# Input data
+input_data = pd.DataFrame([[
+    kvp, mas, time, thickness, proj_PA, proj_LAT
+]], columns=['kVp', 'mAs', 'ExposureTime', 'Thickness', 'Projection_PA', 'Projection_LAT'])
 
-        # Process the uploaded file and question.
-        document = uploaded_file.read().decode()
-        messages = [
-            {
-                "role": "user",
-                "content": f"Here's a document: {document} \n\n---\n\n {question}",
-            }
-        ]
-
-        # Generate an answer using the OpenAI API.
-        stream = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=messages,
-            stream=True,
-        )
-
-        # Stream the response to the app using `st.write_stream`.
-        st.write_stream(stream)
+# Predict button
+if st.button("Estimate Dose"):
+    dose_prediction = model.predict(input_data)[0]
+    st.success(f"📟 Estimated Radiation Dose: **{dose_prediction:.2f} mGy·cm²**")
