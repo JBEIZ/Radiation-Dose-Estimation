@@ -25,9 +25,16 @@ proj_PA = 1 if projection == 'PA' else 0
 proj_LAT = 1 if projection == 'LAT' else 0
 
 # Input data
-input_data = pd.DataFrame([[
-    kvp, mas, time, thickness, proj_PA, proj_LAT
-]], columns=['kVp', 'mAs', 'ExposureTime', 'Thickness', 'Projection_PA', 'Projection_LAT'])
+# Ensure correct feature structure and order
+columns = list(model.feature_names_in_)
+input_data = pd.DataFrame([{
+    'kVp': kvp,
+    'mAs': mas,
+    'ExposureTime': time,
+    'Thickness': thickness,
+    'Projection_PA': proj_PA,
+    'Projection_LAT': proj_LAT
+}], columns=columns)
 
 # Predict button
 if st.button("Estimate Dose"):
